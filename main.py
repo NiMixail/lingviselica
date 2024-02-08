@@ -1,6 +1,12 @@
 # Hangman game
+import os
 from random import choice
 from hangman import hangman
+
+
+def clr():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 
 words = {}
 with open('dictionary.txt', 'r', encoding='utf-8') as f:
@@ -8,12 +14,14 @@ with open('dictionary.txt', 'r', encoding='utf-8') as f:
         words[line.split(' * ')[0]] = line.split(' * ')[1]
 
 while True:
-    print('\n' * 32)
+    clr()
     w = choice(list(words.keys()))
-    view = '_' * len(w)
+    view = ''.join(i if i == ' ' else '_' for i in w)
     mistakes = 0
+    letters = {c: 7 for c in 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'}  # 7 - not used, 2 - guessed, 1 - wrong
     while True:
-        print(hangman[mistakes] + ' ' * 6 + view)
+        print(hangman[mistakes] + '    ' + view +
+              '    Исп.: ' + ''.join(f'\033[3{str(letters[le])}m{le}\033[0m' for le in sorted(letters)))
         if mistakes == len(hangman) - 1:
             print('Вы проиграли!')
             print(w, '-', words[w])
@@ -21,13 +29,17 @@ while True:
             break
         letter = input('\nВводите букву, славяне: ').upper()
         if letter in w:
+            if letter in letters:
+                letters[letter] = 2
             for i in range(len(w)):
                 if w[i] == letter:
-                    view = view[:i] + letter + view[i+1:]
-            print('\n' * 32)
+                    view = view[:i] + letter + view[i + 1:]
+            clr()
         else:
             mistakes += 1
-            print('\n' * 32)
+            if letter in letters:
+                letters[letter] = 1
+            clr()
         if view == w:
             print('Верно!')
             print(w, '-', words[w])
