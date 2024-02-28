@@ -18,7 +18,7 @@ while True:
     w = choice(list(words.keys()))
     view = ''.join(i if i == ' ' else '_' for i in w)
     mistakes = 0
-    letters = {c: 7 for c in 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'}  # 7 - not used, 2 - guessed, 1 - wrong
+    letters = {c: 7 for c in 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ-.'}  # 7 - not used, 2 - guessed, 1 - wrong
     while True:
         print(hangman[mistakes] + '    ' + view +
               '    Исп.: ' + ''.join(f'\033[3{str(letters[le])}m{le}\033[0m' for le in sorted(letters)))
