@@ -5,7 +5,10 @@ from hangman import hangman
 
 cyr = list('АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ-.')
 
-bot = telebot.TeleBot('6797245876:AAHNUyaqLZye2Dx9j2WcwXXK34yna_BcGUA')
+with open('token.txt') as f:
+    token = f.read()
+
+bot = telebot.TeleBot(token)
 
 keyboard = types.ReplyKeyboardMarkup(row_width=5)
 buttons = [types.KeyboardButton(text=letter) for letter in cyr]
@@ -48,6 +51,10 @@ def upd(msg, mstks, vw):
         except Exception as e:
             print(e)
 
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, text='''Доброго времени суток! Чтобы воспользоваться мною, пропишите /guess.
+Чтобы скрыть клавиатуру букв, пропишите /jajemdedov.''')
 
 @bot.message_handler(commands=['jajemdedov'])
 def jajemdedov(message):
