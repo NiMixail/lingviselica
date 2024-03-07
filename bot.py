@@ -19,7 +19,7 @@ with open('dictionary.txt', 'r', encoding='utf-8') as f:
     for line in f:
         words[line.split(' * ')[0]] = line.split(' * ')[1]
 
-w = None
+chats = {}
 
 neg = """Чё то у вас минус мозг.
 Даже мясо образованей, чем ты.
@@ -40,21 +40,25 @@ pos = """Я ем дедов.
 """.split('\n')
 
 
-def upd(msg, mstks, vw):
-    text = f"<code>{hangman[mstks]}</code>\n{vw}"
-    if text != msg.text:
+def upd(chat_id):
+    chat = chats[chat_id]
+    text = f"<code>{hangman[chat['mis']]}</code>\n{chat['view']}"
+    if text != chat['msg'].text:
         try:
-            bot.edit_message_text(chat_id=msg.chat.id,
-                                  message_id=msg.message_id,
+            bot.edit_message_text(chat_id=chat_id,
+                                  message_id=chat['msg'].id,
                                   text=text,
                                   parse_mode='HTML')
+            # bot.edit_message_reply_markup()
         except Exception as e:
             print(e)
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(message, text='''Доброго времени суток! Чтобы воспользоваться мною, пропишите /guess.
 Чтобы скрыть клавиатуру букв, пропишите /jajemdedov.''')
+
 
 @bot.message_handler(commands=['jajemdedov'])
 def jajemdedov(message):
@@ -65,46 +69,49 @@ def jajemdedov(message):
 
 @bot.message_handler(commands=['guess'])
 def guess(message):
-    global w, view, mistakes, letters, msg
-    w = choice(list(words.keys()))
-    view = ''.join(i + ' ' if i == ' ' else '_ ' for i in w)
-    mistakes = 0
-    letters = {c: 7 for c in cyr}  # 7 - not used, 2 - guessed, 1 - wrong
-
     bot.reply_to(message, text='ㅤ', reply_markup=keyboard)
-    msg = bot.reply_to(message, text=f"<code>{hangman[mistakes]}</code>\n{view}", parse_mode='HTML')
+    print(message.chat.id)
+    chats[message.chat.id] = {'w': choice(list(words.keys())),
+                              'view': None,
+                              'mis': 0,
+                              'abc': {c: 7 for c in cyr}}  # 7 - not used, 2 - guessed, 1 - wrong
+    chats[message.chat.id]['view'] = ''.join(i + ' ' if i == ' ' else '_ ' for i in chats[message.chat.id]['w'])
+    chats[message.chat.id]['msg'] = bot.reply_to(message,
+                                                 text=f"<code>{hangman[0]}</code>\n{chats[message.chat.id]['view']}",
+                                                 parse_mode='HTML')
 
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global w, view, mistakes, letters
-    if w and (len(message.text) == 1 or message.text == w) and (message.text.isupper() or not message.text.isalpha()):
+    ch = chats[message.chat.id]
+    if (ch['w'] and (len(message.text) == 1 or message.text == ch['w'])
+            and (message.text.isupper() or not message.text.isalpha())):
         c = message.text
-        if c in w:
-            if c == w:
-                view = ''.join(i + ' ' for i in w)
-            if c in letters:
-                if letters[c] != 2:
-                    letters[c] = 2
-                    for i in range(len(w)):
-                        if w[i] == c:
-                            view = view[:i * 2] + c + ' ' + view[(i + 1) * 2:]
-                    upd(msg, mistakes, view)
-            if view == ''.join(i + ' ' for i in w):
+        if c in ch['w']:
+            if c == ch['w']:
+                ch['view'] = ''.join(i + ' ' for i in ch['w'])
+            if c in ch['abc']:
+                if ch['abc'][c] != 2:
+                    ch['abc'][c] = 2
+                    for i in range(len(ch['w'])):
+                        if ch['w'][i] == c:
+                            ch['view'] = ch['view'][:i * 2] + c + ' ' + ch['view'][(i + 1) * 2:]
+                    upd(message.chat.id)
+            if ch['view'] == ''.join(i + ' ' for i in ch['w']):
                 bot.reply_to(message,
-                             f"{choice(pos)} \nБыло действительно загадано слово {w} — {words[w]}")
-                w = None
+                             f"{choice(pos)} \nБыло действительно загадано слово {ch['w']} — {words[ch['w']]}")
+                ch['w'] = None
         else:
-            if c in letters:
-                letters[c] = 1
-            mistakes += 1
+            if c in ch['abc']:
+                ch['abc'][c] = 1
+            ch['mis'] += 1
             bot.set_message_reaction(message.chat.id, message.message_id,
                                      [types.ReactionTypeEmoji("👎")])
-            upd(msg, mistakes, view)
-            if mistakes == len(hangman) - 1:
+            upd(message.chat.id)
+            if ch['mis'] == len(hangman) - 1:
                 bot.reply_to(message,
-                             text=f'{choice(neg)} \nБыло загадано слово {w} — {words[w]}')
-                w = None
+                             text=f'{choice(neg)} \nБыло загадано слово {ch["w"]} — {words[ch["w"]]}')
+                ch['w'] = None
 
 
 bot.polling()
