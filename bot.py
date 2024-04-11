@@ -2,6 +2,7 @@ import telebot
 from telebot import types
 from random import choice
 from hangman import hangman
+from re import sub
 
 cyr = list('АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ-.')
 
@@ -18,7 +19,13 @@ words = {}
 with open('dictionary.txt', 'r', encoding='utf-8') as f:
     for line in f:
         words[line.split(' * ')[0]] = line.split(' * ')[1]
-
+frazeos = {}
+with (open('dictionary_f_.txt', 'r', encoding='utf-8') as f):
+    for line in f:
+        line = sub(r'</?div.*?>|<br.*?>|a href.*?.htm»', '', line
+                   ).replace('&amp;LT;', '⟨').replace('&amp;GT;', '⟩')
+        frazeo = sub(r'\(.*?\)', '', line.split(' ###### ')[0]).upper()
+        frazeos[frazeo] = line.split(' ###### ')[1]
 chats = {}
 
 neg = """Чё то у вас минус мозг.
@@ -41,23 +48,35 @@ pos = """Я ем дедов.
 
 
 def upd(chat_id):
-    chat = chats[chat_id]
-    text = f"<code>{hangman[chat['mis']]}</code>\n{chat['view']}"
-    if text != chat['msg'].text:
-        try:
-            bot.edit_message_text(chat_id=chat_id,
-                                  message_id=chat['msg'].id,
-                                  text=text,
-                                  parse_mode='HTML')
-            # bot.edit_message_reply_markup()
-        except Exception as e:
-            print(e)
+    try:
+        chat = chats[chat_id]
+        text = f"<code>{hangman[chat['mis']]}</code>\n{chat['view']}"
+        if text != chat['msg'].text:
+                bot.edit_message_text(chat_id=chat_id,
+                                      message_id=chat['msg'].id,
+                                      text=text,
+                                      parse_mode='HTML')
+                # bot.edit_message_reply_markup()
+    except Exception as e:
+        print(e)
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, text='''Доброго времени суток! Чтобы воспользоваться мною, пропишите /guess.
-Чтобы скрыть клавиатуру букв, пропишите /jajemdedov.''')
+    bot.reply_to(message, text='''Доброго времени суток! 
+    Чтобы воспользоваться мною, пропишите /guess.
+    Если хотите угадывать фразеологизм, а не термин, пропишите /fguess.
+    Чтобы скрыть клавиатуру букв, пропишите /jajemdedov.
+    В моей библиотеке более 2500 терминов и 14300 фразеологизмов. Удачи!''')
+
+
+@bot.message_handler(commands=['test'])
+def test(message):
+    ch = choice(list(frazeos.keys()))
+    print(ch)
+    bot.reply_to(message,
+                 text=frazeos[ch],
+                 parse_mode='HTML')
 
 
 @bot.message_handler(commands=['jajemdedov'])
@@ -75,11 +94,25 @@ def guess(message):
                               'view': None,
                               'mis': 0,
                               'abc': {c: 7 for c in cyr}}  # 7 - not used, 2 - guessed, 1 - wrong
+    chats[message.chat.id]['info'] = words[chats[message.chat.id]['w']]
     chats[message.chat.id]['view'] = ''.join(i + ' ' if i == ' ' else '_ ' for i in chats[message.chat.id]['w'])
     chats[message.chat.id]['msg'] = bot.reply_to(message,
                                                  text=f"<code>{hangman[0]}</code>\n{chats[message.chat.id]['view']}",
                                                  parse_mode='HTML')
 
+@bot.message_handler(commands=['fguess'])
+def fguess(message):
+    bot.reply_to(message, text='ㅤ', reply_markup=keyboard)
+    print('f', message.chat.id)
+    chats[message.chat.id] = {'w': choice(list(frazeos.keys())),
+                              'view': None,
+                              'mis': 0,
+                              'abc': {c: 7 for c in cyr}}  # 7 - not used, 2 - guessed, 1 - wrong
+    chats[message.chat.id]['info'] = frazeos[chats[message.chat.id]['w']]
+    chats[message.chat.id]['view'] = ''.join(i + ' ' if i == ' ' else '_ ' for i in chats[message.chat.id]['w'])
+    chats[message.chat.id]['msg'] = bot.reply_to(message,
+                                                 text=f"<code>{hangman[0]}</code>\n{chats[message.chat.id]['view']}",
+                                                 parse_mode='HTML')
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
@@ -99,7 +132,8 @@ def handle_message(message):
                     upd(message.chat.id)
             if ch['view'] == ''.join(i + ' ' for i in ch['w']):
                 bot.reply_to(message,
-                             f"{choice(pos)} \nБыло действительно загадано слово {ch['w']} — {words[ch['w']]}")
+                             f"{choice(pos)} \nБыло действительно загадано <b>{ch['w']}</b> — {ch['info']}",
+                             parse_mode='HTML')
                 ch['w'] = None
         else:
             if c in ch['abc']:
@@ -110,7 +144,8 @@ def handle_message(message):
             upd(message.chat.id)
             if ch['mis'] == len(hangman) - 1:
                 bot.reply_to(message,
-                             text=f'{choice(neg)} \nБыло загадано слово {ch["w"]} — {words[ch["w"]]}')
+                             text=f'{choice(neg)} \nБыло загадано <b>{ch["w"]}</b> — {ch["info"]}',
+                             parse_mode='HTML')
                 ch['w'] = None
 
 
